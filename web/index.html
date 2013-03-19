@@ -1,15 +1,18 @@
 <!doctype html>
 <html>
 <head>
-	<title>home network monitor</title>
-	<meta charset="utf-8">
+
+<title>netmon</title>
+<meta charset="utf-8">
 
 <style>
-html, body {
+html, body
+{
 	background-color: #C4C9CF;
 	height: 100%;
 }
-#gauges {
+#gauges
+{
 	height: 320px;
 	left: 50%;
 	margin-left: -400px;
@@ -18,7 +21,8 @@ html, body {
 	top: 50%;
 	width: 800px;
 }
-#rx-gauge, #tx-gauge {
+#rx-gauge, #tx-gauge
+{
 	float: left;
 }
 </style>
@@ -27,15 +31,15 @@ html, body {
 <body>
 
 <div id="gauges">
-<div id="rx-gauge" style="width:400px; height:320px"></div>
-<div id="tx-gauge" style="width:400px; height:320px"></div>
+	<div id="rx-gauge" style="width:400px; height:320px"></div>
+	<div id="tx-gauge" style="width:400px; height:320px"></div>
 </div>
 
-<script src="http://code.jquery.com/jquery.min.js"></script>
+<script src="jquery-1.9.1.min.js"></script>
 <script src="raphael.2.1.0.min.js"></script>
 <script src="justgage.1.0.1.min.js"></script>
-<script>
 
+<script>
 $(function(){
 	var rx_gauge = null
 	var tx_gauge = null
@@ -86,7 +90,7 @@ $(function(){
 		return Math.round(size / 1024 * 10) / 10
 	}
 })
+</script>
 
-</script>	
 </body>
 </html>
