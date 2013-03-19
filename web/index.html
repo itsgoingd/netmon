@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+	<title>home network monitor</title>
+	<meta charset="utf-8">
+
+<style>
+html, body {
+	background-color: #C4C9CF;
+	height: 100%;
+}
+#gauges {
+	height: 320px;
+	left: 50%;
+	margin-left: -400px;
+	margin-top: -160px;
+	position: relative;
+	top: 50%;
+	width: 800px;
+}
+#rx-gauge, #tx-gauge {
+	float: left;
+}
+</style>
+
+</head>
+<body>
+
+<div id="gauges">
+<div id="rx-gauge" style="width:400px; height:320px"></div>
+<div id="tx-gauge" style="width:400px; height:320px"></div>
+</div>
+
+<script src="http://code.jquery.com/jquery.min.js"></script>
+<script src="raphael.2.1.0.min.js"></script>
+<script src="justgage.1.0.1.min.js"></script>
+<script>
+
+$(function(){
+	var rx_gauge = null
+	var tx_gauge = null
+
+	var rx_max_min = 6 * 1024 / 8;
+	var tx_max_min = 6 * 1024 / 8;
+
+	$.getJSON('/data', function(data){
+		rx_gauge = new JustGage({
+			id: "rx-gauge", 
+			value: 1,
+			min: 0,
+			max: rx_max_min,
+			title: "RX",
+			titleFontColor: "#010101",
+			label: "kBps",
+			labelFontColor: "#121212",
+			levelColorsGradient: false,
+			refreshAnimationTime: 1500
+		});
+
+		tx_gauge = new JustGage({
+			id: "tx-gauge", 
+			value: 1,
+			min: 0,
+			max: tx_max_min,
+			title: "TX",
+			titleFontColor: "#010101",
+			label: "kBps",
+			labelFontColor: "#121212",
+			levelColorsGradient: false,
+			refreshAnimationTime: 1500
+		});
+
+		refresh()
+	})
+
+	function refresh() {
+		$.getJSON('/data', function(data){
+			rx_gauge.refresh(kilobytes(data.data.rx[data.data.rx.length -1]))
+			tx_gauge.refresh(kilobytes(data.data.tx[data.data.tx.length -1]))
+
+			setTimeout(refresh, data.info.delay * 1000)
+		})
+	}
+
+	function kilobytes(size) {
+		return Math.round(size / 1024 * 10) / 10
+	}
+})
+
+</script>	
+</body>
+</html>

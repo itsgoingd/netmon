@@ -1,0 +1,11 @@
+{
+  "name":        "netmon",
+  "version":     "1.0.0",
+  "author":      "itsgoingd <itsgoingd@luzer.sk>",
+  "description": "",
+  "dependencies": {
+    "express":     "*",
+    "netroute":    "*",
+    "snmp-native": "*"
+  }
+}
