@@ -6,89 +6,231 @@
 <meta charset="utf-8">
 
 <style>
+*
+{
+	box-model: border-box;
+}
 html, body
 {
-	background-color: #C4C9CF;
+	background: #8e9296; /* Old browsers */
+	background: -moz-linear-gradient(top, #8e9296 0%, #c4c9cf 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#8e9296), color-stop(100%,#c4c9cf)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top, #8e9296 0%,#c4c9cf 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top, #8e9296 0%,#c4c9cf 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top, #8e9296 0%,#c4c9cf 100%); /* IE10+ */
+	background: linear-gradient(to bottom, #8e9296 0%,#c4c9cf 100%); /* W3C */
+	font-family: Helvetica, sans-serif;
+	font-size: 100%;
 	height: 100%;
+	overflow: hidden;
+	padding: 0;
 }
-#gauges
+
+#map
 {
-	height: 320px;
+	height: 100%;
+	left: 0;
+	position: absolute;
+	top: 0;
+	text-align: center;
+	transition: width 2s;
+	width: 100%;
+}
+#map.small
+{
+	width: 50%;
+}
+
+#details
+{
+	background: #303133; /* Old browsers */
+	background: -moz-linear-gradient(top, #303133 0%, #595a5e 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#303133), color-stop(100%,#595a5e)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top, #303133 0%,#595a5e 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top, #303133 0%,#595a5e 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top, #303133 0%,#595a5e 100%); /* IE10+ */
+	background: linear-gradient(to bottom, #303133 0%,#595a5e 100%); /* W3C */
+	border-left: 4px solid #333;
+	color: #fff;
+	font-weight: 300;
+	height: 100%;
+	left: 100%;
+	padding-left: 5%;
+	padding-top: 2%;
+	position: absolute;
+	text-align: left;
+	transition: left 2s;
+	top: 0;
+	width: 50%;
+}
+#details.show
+{
 	left: 50%;
-	margin-left: -400px;
-	margin-top: -160px;
-	position: relative;
-	top: 50%;
-	width: 800px;
 }
-#rx-gauge, #tx-gauge
+#details h1
 {
-	float: left;
+	font-size: 1.5em;
+	font-weight: normal;
+	margin-bottom: 1em;
+}
+#details th
+{
+	font-weight: normal;
+	padding-right: 1em;
+}
+
+#router.active
+{
+	border: 2px solid #333;
+	border-radius: 10px;
+}
+
+.map-data
+{
+	height: 420px;
+	left: 50%;
+	margin-left: -80px;
+	margin-top: -210px;
+	position: absolute;
+	top: 50%;
+	width: 160px;
+}
+
+.icon-internet
+{
+	margin: 0 0 20px 0;
+}
+.line
+{
+	border: 2px solid #000;
+	border-radius: 2px;
+	margin: auto;
+	width: 0;
+}
+
+.details-graphs
+{
+	margin-top: 1em;
+	width: 80%;
+}
+.details-graphs th
+{
+	line-height: 1.5;
+	text-align: center;
+	width: 18%;
+}
+.details-graphs td
+{
+	width: 82%;
 }
 </style>
 
 </head>
 <body>
 
-<div id="gauges">
-	<div id="rx-gauge" style="width:400px; height:320px"></div>
-	<div id="tx-gauge" style="width:400px; height:320px"></div>
+<div id="map">
+	<div class="map-data">
+		<img src="img/icon-internet.png" class="icon-internet">
+		<div class="line" style="height:100px"></div>
+		<img src="img/icon-router.png" class="icon-router" id="router">
+	</div>
+</div>
+
+<div id="details">
+	<h1 id="router-name">&nbsp;</h1>
+	<table>
+		<tr>
+			<th>IP Address</th>
+			<td id="router-ip">&nbsp;</td>
+		</tr>
+		<tr>
+			<th>Uptime</th>
+			<td id="router-uptime">&nbsp;</td>
+		</tr>
+	</table>
+
+	<table class="details-graphs">
+		<tr>
+			<th>
+				RX<br>
+				<span id="router-rx-value">&nbsp;</span>
+			</th>
+			<td>
+				<div id="router-rx-graph">
+					<canvas width="240px" height="90px"></canvas>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<th>
+				TX<br>
+				<span id="router-tx-value">&nbsp;</span>
+			</th>
+			<td>
+				<div id="router-tx-graph">
+					<canvas width="240px" height="90px"></canvas>
+				</div>
+			</td>
+		</tr>
+	</table>
 </div>
 
 <script src="jquery-1.9.1.min.js"></script>
-<script src="raphael.2.1.0.min.js"></script>
-<script src="justgage.1.0.1.min.js"></script>
+<script src="graph.js"></script>
 
 <script>
 $(function(){
-	var rx_gauge = null
-	var tx_gauge = null
 
-	var rx_max_min = 6 * 1024 / 8;
-	var tx_max_min = 6 * 1024 / 8;
+$('#router').click(function(){
+	$(this).toggleClass('active');
+	$('#map').toggleClass('small');
+	$('#details').toggleClass('show');
+});
 
+var rx_graph = null
+var tx_graph = null
+
+$.getJSON('/data', function(data){
+	rx_graph = new Graph({
+		target:         'router-rx-graph',
+		data:           [data.data.rx],
+		legendColor:    '#fff',
+		legendCallback: kilobytes
+	});
+
+	tx_graph = new Graph({
+		target:         'router-tx-graph',
+		data:           [data.data.tx],
+		legendColor:    '#fff',
+		legendCallback: kilobytes
+	});
+
+	refresh();
+})
+
+function refresh() {
 	$.getJSON('/data', function(data){
-		rx_gauge = new JustGage({
-			id: "rx-gauge", 
-			value: 1,
-			min: 0,
-			max: rx_max_min,
-			title: "RX",
-			titleFontColor: "#010101",
-			label: "kBps",
-			labelFontColor: "#121212",
-			levelColorsGradient: false,
-			refreshAnimationTime: 1500
-		});
+		$('#router-name').text(data.info.name);
+		$('#router-ip').text(data.info.ip_address);
+		$('#router-uptime').text(data.info.uptime);
 
-		tx_gauge = new JustGage({
-			id: "tx-gauge", 
-			value: 1,
-			min: 0,
-			max: tx_max_min,
-			title: "TX",
-			titleFontColor: "#010101",
-			label: "kBps",
-			labelFontColor: "#121212",
-			levelColorsGradient: false,
-			refreshAnimationTime: 1500
-		});
+		$('#router-rx-value').text(kilobytes(data.data.rx[data.data.rx.length -1]));
+		$('#router-tx-value').text(kilobytes(data.data.tx[data.data.tx.length -1]));
 
-		refresh()
+		rx_graph.setData(data.data.rx);
+		tx_graph.setData(data.data.tx);
+
+		rx_graph.draw();
+		tx_graph.draw();
+
+		setTimeout(refresh, data.info.delay * 1000);
 	})
+}
 
-	function refresh() {
-		$.getJSON('/data', function(data){
-			rx_gauge.refresh(kilobytes(data.data.rx[data.data.rx.length -1]))
-			tx_gauge.refresh(kilobytes(data.data.tx[data.data.tx.length -1]))
+function kilobytes(size) {
+	return (Math.round(size / 1024 * 10) / 10) + ' kB';
+}
 
-			setTimeout(refresh, data.info.delay * 1000)
-		})
-	}
-
-	function kilobytes(size) {
-		return Math.round(size / 1024 * 10) / 10
-	}
 })
 </script>
 

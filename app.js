@@ -8,7 +8,7 @@ var Netmon = (function(){
 
 	var Netmon = function()
 	{
-		this.delay = 5;
+		this.delay = 1;
 		this.router = new Router('default', this.delay);
 
 		if (process.argv.indexOf('--cli') !== -1)
@@ -50,9 +50,12 @@ var Netmon = (function(){
 		web.get('/data', function(req, res){
 			var data = {
 				info: {
-					delay: that.delay,
-					rx_top: that.router.rx_top,
-					tx_top: that.router.tx_top
+					name:       that.router.name,
+					ip_address: that.router.ip_address,
+					uptime:     that.router.uptime,
+					delay:      that.router.delay,
+					rx_top:     that.router.rx_top,
+					tx_top:     that.router.tx_top
 				},
 				data: {
 					rx: that.router.rx_rates,
@@ -116,7 +119,7 @@ var Router = (function(){
 		if (this.rx.length > 1024)
 			this.rx.shift();
 
-		this.rx_rates.push((this.rx.last() - this.rx[this.rx.length -2]) / 2 / this.delay);
+		this.rx_rates.push((this.rx.last() - this.rx[this.rx.length -2]) / this.delay);
 
 		if (this.rx_rates.length > 1024)
 			this.rx_rates.shift();
@@ -132,18 +135,19 @@ var Router = (function(){
 		if (this.tx.length > 1024)
 			this.tx.shift();
 
-		this.tx_rates.push((this.tx.last() - this.tx[this.tx.length -2]) / 2 / this.delay);
+		this.tx_rates.push((this.tx.last() - this.tx[this.tx.length -2]) / this.delay);
 
 		if (this.tx_rates.length > 1024)
 			this.tx_rates.shift();
 		if (this.tx_rates.last() > this.tx_top)
 			this.tx_top = this.tx_rates.last();
-
 	};
 
 	Router.prototype.refresh = function()
 	{
 		var oids = [
+			[1, 3, 6, 1, 2, 1, 1, 1, 0],        // SNMPv2-MIB::sysDescr.0
+			[1, 3, 6, 1, 2, 1, 1, 3, 0],        // DISMAN-EVENT-MIB::sysUpTimeInstance
 			[1, 3, 6, 1, 2, 1, 2, 2, 1, 10, 1], // IF-MIB::ifInOctets.1
 			[1, 3, 6, 1, 2, 1, 2, 2, 1, 16, 1]  // IF-MIB::ifOutOctets.1
 		];
@@ -151,9 +155,13 @@ var Router = (function(){
 		var that = this;
 		this.snmp.getAll({ oids: oids }, function (error, varbinds){
 			varbinds.forEach(function (vb){
-				if (vb.oid == '1,3,6,1,2,1,2,2,1,10,1') // IF-MIB::ifInOctets.1
+				if (vb.oid == '1,3,6,1,2,1,1,1,0')           // SNMPv2-MIB::sysDescr.0
+					that.name = vb.value;
+				else if (vb.oid == '1,3,6,1,2,1,1,3,0')      // DISMAN-EVENT-MIB::sysUpTimeInstance
+					that.uptime = vb.value;
+				else if (vb.oid == '1,3,6,1,2,1,2,2,1,10,1') // IF-MIB::ifInOctets.1
 					that.addRxValue(vb.value);
-				else                                    // IF-MIB::ifOutOctets.1
+				else                                         // IF-MIB::ifOutOctets.1
 					that.addTxValue(vb.value);
 			});
 		});
