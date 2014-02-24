@@ -9,12 +9,22 @@ var Netmon = (function(){
 	var Netmon = function()
 	{
 		this.delay = 1;
-		this.router = new Router('default', this.delay);
+		this.pings = {};
 
-		if (process.argv.indexOf('--cli') !== -1)
+		this.args = require('minimist')(process.argv);
+
+		var gateway = this.args.gateway || 'default';
+		this.router = new Router(gateway, this.delay);
+
+		if (this.args.ping) {
+			var hosts = this.args.ping instanceof Array ? this.args.ping : [this.args.ping];
+			this.pinger = new Pinger(hosts, this.delay * 5);
+		}
+
+		if (this.args.cli)
 			this.startCliUi();
 
-		if (process.argv.indexOf('--web') !== -1)
+		if (this.args.web)
 			this.startWebUi();
 	};
 
@@ -24,14 +34,24 @@ var Netmon = (function(){
 			"RX: " + Math.abs(Math.round(this.router.rx_rates.last() / 1024 * 100) / 100) + " kBps (" + Math.round(this.router.rx.last() / 1024 / 1024 * 100) / 100 + " MB)   " +
 			"TX: " + Math.abs(Math.round(this.router.tx_rates.last() / 1024 * 100) / 100) + " kBps (" + Math.round(this.router.tx.last() / 1024 / 1024 * 100) / 100 + " MB)"
 		);
+
+		if (this.pinger) {
+			var ping_text = "Ping:";
+
+			this.pinger.hosts.forEach(function(host)
+			{
+				ping_text += ' ' + host + ' ' + (this.pinger.pings[host].last()) + ' ms';
+			}.bind(this));
+
+			console.log(ping_text);
+		}
 	};
 
 	Netmon.prototype.startCliUi = function()
 	{
-		var that = this;
 		setInterval(function(){
-			that.cliPrintCurrent();
-		}, this.delay * 1000);
+			this.cliPrintCurrent();
+		}.bind(this), this.delay * 1000);
 	};
 
 	Netmon.prototype.startWebUi = function()
@@ -42,25 +62,27 @@ var Netmon = (function(){
 
 		web.use(express.static(__dirname + '/web'));
 
-		web.get('/', function(req, res){
+		web.get('/', function(req, res)
+		{
 			res.sendfile('index.html');
 		});
 
-		var that = this;
-		web.get('/data', function(req, res){
+		web.get('/data', function(req, res)
+		{
 			var data = {
 				info: {
-					name:       that.router.name,
-					ip_address: that.router.ip_address,
-					uptime:     that.router.uptime,
-					delay:      that.router.delay,
-					rx_top:     that.router.rx_top,
-					tx_top:     that.router.tx_top
+					name:       this.router.name,
+					ip_address: this.router.ip_address,
+					uptime:     this.router.uptime,
+					delay:      this.router.delay,
+					rx_top:     this.router.rx_top,
+					tx_top:     this.router.tx_top
 				},
-				data: {
-					rx: that.router.rx_rates,
-					tx: that.router.tx_rates
-				}
+				rates: {
+					rx: this.router.rx_rates,
+					tx: this.router.tx_rates
+				},
+				ping: this.pinger.pings
 			};
 
 			res.status(200);
@@ -68,12 +90,9 @@ var Netmon = (function(){
 			res.header("Access-Control-Allow-Origin", "*");
 			res.write(JSON.stringify(data));
 			res.end();
-		});
+		}.bind(this));
 
-		var listen_port = 3111;
-
-		if (process.argv.indexOf('--port') !== -1)
-			listen_port = process.argv[process.argv.indexOf('--port') + 1];
+		var listen_port = this.args.port || 3111;
 
 		web.listen(listen_port);
 	};
@@ -106,14 +125,17 @@ var Router = (function(){
 
 		this.refresh();
 
-		var that = this;
-		setInterval(function(){
-			that.refresh();
-		}, this.delay * 1000);
+		setInterval(function()
+		{
+			this.refresh();
+		}.bind(this), this.delay * 1000);
 	};
 
 	Router.prototype.addRxValue = function(value)
 	{
+		if (value < this.rx.last())
+			value = this.rx.last();
+
 		this.rx.push(value);
 
 		if (this.rx.length > 1024)
@@ -130,6 +152,9 @@ var Router = (function(){
 
 	Router.prototype.addTxValue = function(value)
 	{
+		if (value < this.tx.last())
+			value = this.tx.last();
+
 		this.tx.push(value);
 
 		if (this.tx.length > 1024)
@@ -152,19 +177,20 @@ var Router = (function(){
 			[1, 3, 6, 1, 2, 1, 2, 2, 1, 16, 1]  // IF-MIB::ifOutOctets.1
 		];
 
-		var that = this;
-		this.snmp.getAll({ oids: oids }, function (error, varbinds){
-			varbinds.forEach(function (vb){
+		this.snmp.getAll({ oids: oids }, function (error, varbinds)
+		{
+			varbinds.forEach(function (vb)
+			{
 				if (vb.oid == '1,3,6,1,2,1,1,1,0')           // SNMPv2-MIB::sysDescr.0
-					that.name = vb.value;
+					this.name = vb.value;
 				else if (vb.oid == '1,3,6,1,2,1,1,3,0')      // DISMAN-EVENT-MIB::sysUpTimeInstance
-					that.uptime = vb.value;
+					this.uptime = vb.value;
 				else if (vb.oid == '1,3,6,1,2,1,2,2,1,10,1') // IF-MIB::ifInOctets.1
-					that.addRxValue(vb.value);
+					this.addRxValue(vb.value);
 				else                                         // IF-MIB::ifOutOctets.1
-					that.addTxValue(vb.value);
-			});
-		});
+					this.addTxValue(vb.value);
+			}.bind(this));
+		}.bind(this));
 	};
 
 	Router.getDefaultIpAddress = function()
@@ -176,7 +202,61 @@ var Router = (function(){
 
 })();
 
-Array.prototype.last = function(){
+var Pinger = (function()
+{
+
+	var Pinger = function(hosts, delay)
+	{
+		this.delay = delay;
+		this.hosts = hosts;
+		this.pings = {};
+
+		this.regexp = new RegExp('[0-9]+? bytes from [A-Za-z0-9.]+?: icmp_seq=[0-9]+? ttl=[0-9]+? time=([0-9.]+?) ms');
+
+		this.hosts.forEach(function(host)
+		{
+			this.pings[host] = [0];
+			this.ping(host);
+		}.bind(this));
+	};
+
+	Pinger.prototype.ping = function(host)
+	{
+		var spawn = require('child_process').spawn;
+
+		var ping = spawn('ping', ['-i' + this.delay, '-W' + this.delay * 1000, host]);
+
+		ping.stdout.on('data', function(data)
+		{
+			var matches = data.toString().match(this.regexp);
+
+			if (!matches) { // ping failed
+				this.addLatencyValue(host, 0);
+			} else {
+				this.addLatencyValue(host, parseFloat(matches[1]));
+			}
+		}.bind(this));
+
+		ping.on('close', function(code)
+		{
+			this.ping(host);
+		}.bind(this));
+	};
+
+	Pinger.prototype.addLatencyValue = function(host, value)
+	{
+		this.pings[host].push(value);
+
+		if (this.pings[host] > 1024)
+			this.pings[host].shift();
+	};
+
+	return Pinger;
+
+})();
+
+Array.prototype.last = function()
+{
 	return this[this.length - 1];
 };
 

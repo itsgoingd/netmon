@@ -2,9 +2,10 @@
   "name":        "netmon",
   "version":     "1.0.0",
   "author":      "itsgoingd <itsgoingd@luzer.sk>",
-  "description": "",
+  "description": "A simple network monitor.",
   "dependencies": {
     "express":     "*",
+    "minimist":    "*",
     "netroute":    "*",
     "snmp-native": "*"
   }

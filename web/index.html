@@ -8,7 +8,7 @@
 <style>
 *
 {
-	box-model: border-box;
+	box-sizing: border-box;
 }
 html, body
 {
@@ -55,6 +55,7 @@ html, body
 	font-weight: 300;
 	height: 100%;
 	left: 100%;
+	overflow-y: scroll;
 	padding-left: 5%;
 	padding-top: 2%;
 	position: absolute;
@@ -62,6 +63,7 @@ html, body
 	transition: left 2s;
 	top: 0;
 	width: 50%;
+	-webkit-overflow-scrolling: touch;
 }
 #details.show
 {
@@ -173,6 +175,9 @@ html, body
 			</td>
 		</tr>
 	</table>
+
+	<table class="details-graphs" id="ping-graphs">
+	</table>
 </div>
 
 <script src="jquery-1.9.1.min.js"></script>
@@ -187,26 +192,50 @@ $('#router').click(function(){
 	$('#details').toggleClass('show');
 });
 
-var rx_graph = null
-var tx_graph = null
+var rx_graph = null;
+var tx_graph = null;
+var ping_graphs = [];
 
 $.getJSON('/data', function(data){
 	rx_graph = new Graph({
 		target:         'router-rx-graph',
-		data:           [data.data.rx],
+		data:           [data.rates.rx],
 		legendColor:    '#fff',
 		legendCallback: kilobytes
 	});
 
 	tx_graph = new Graph({
 		target:         'router-tx-graph',
-		data:           [data.data.tx],
+		data:           [data.rates.tx],
 		legendColor:    '#fff',
 		legendCallback: kilobytes
 	});
 
+	for (var host in data.ping) {
+		$('#ping-graphs').append(
+			'		<tr>' +
+			'			<th>' +
+			'				' + host + '<br>' +
+			'				<span id="pinger-' + host.replace(/\./g, '_') + '-value">&nbsp;</span>' +
+			'			</th>' +
+			'			<td>' +
+			'				<div id="pinger-' + host.replace(/\./g, '_') + '-graph">' +
+			'					<canvas width="240px" height="90px"></canvas>' +
+			'				</div>' +
+			'			</td>' +
+			'		</tr>'
+		);
+
+		ping_graphs[host] = new Graph({
+			target:         'pinger-' + host.replace(/\./g, '_') + '-graph',
+			data:           [data.ping[host]],
+			legendColor:    '#fff',
+			legendCallback: miliseconds
+		});
+	}
+
 	refresh();
-})
+});
 
 function refresh() {
 	$.getJSON('/data', function(data){
@@ -214,24 +243,36 @@ function refresh() {
 		$('#router-ip').text(data.info.ip_address);
 		$('#router-uptime').text(data.info.uptime);
 
-		$('#router-rx-value').text(kilobytes(data.data.rx[data.data.rx.length -1]));
-		$('#router-tx-value').text(kilobytes(data.data.tx[data.data.tx.length -1]));
+		$('#router-rx-value').text(kilobytes(data.rates.rx[data.rates.rx.length -1]));
+		$('#router-tx-value').text(kilobytes(data.rates.tx[data.rates.tx.length -1]));
 
-		rx_graph.setData(data.data.rx);
-		tx_graph.setData(data.data.tx);
+		rx_graph.setData(data.rates.rx);
+		tx_graph.setData(data.rates.tx);
 
 		rx_graph.draw();
 		tx_graph.draw();
 
+		for (var host in data.ping) {
+			ping_graphs[host].setData(data.ping[host]);
+			ping_graphs[host].draw();
+			$('#pinger-' + host.replace(/\./g, '_') + '-value').text(
+				miliseconds(data.ping[host][data.ping[host].length -1])
+			);
+		}
+
 		setTimeout(refresh, data.info.delay * 1000);
-	})
+	});
 }
 
 function kilobytes(size) {
 	return (Math.round(size / 1024 * 10) / 10) + ' kB';
 }
 
-})
+function miliseconds(time) {
+	return (Math.round(time * 10) / 10) + ' ms';
+}
+
+});
 </script>
 
 </body>
