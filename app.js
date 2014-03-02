@@ -15,11 +15,9 @@ var Netmon = (function(){
 		var gateway = this.args.gateway || 'default';
 		this.router = new Router(gateway, this.delay);
 
-		if (this.args.ping) {
-			var hosts = this.args.ping instanceof Array ? this.args.ping : [this.args.ping];
-			var ping_delay = this.args['ping-delay'] || this.delay * 5;
-			this.pinger = new Pinger(hosts, ping_delay);
-		}
+		var hosts = this.args.ping || [];
+		var ping_delay = this.args['ping-delay'] || this.delay * 5;
+		this.pinger = new Pinger(hosts, ping_delay);
 
 		if (this.args.cli)
 			this.startCliUi();
@@ -207,6 +205,10 @@ var Pinger = (function()
 
 	var Pinger = function(hosts, delay)
 	{
+		if (!(hosts instanceof Array)) {
+			hosts = [hosts];
+		}
+
 		this.delay = delay;
 		this.hosts = hosts;
 		this.pings = {};
