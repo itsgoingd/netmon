@@ -129,17 +129,19 @@ var Router = (function(){
 		}.bind(this), this.delay * 1000);
 	};
 
-	Router.prototype.addRxValue = function(value)
+	Router.prototype.addRxValue = function(rx_current)
 	{
-		if (value < this.rx.last())
-			value = this.rx.last();
+		var rx_last = this.rx.last();
 
-		this.rx.push(value);
+		this.rx.push(rx_current);
 
 		if (this.rx.length > 1024)
 			this.rx.shift();
 
-		this.rx_rates.push((this.rx.last() - this.rx[this.rx.length -2]) / this.delay);
+		if (rx_current < rx_last) // counter was reset, avoid computing negative rate
+			return;
+
+		this.rx_rates.push((rx_current - rx_last) / this.delay);
 
 		if (this.rx_rates.length > 1024)
 			this.rx_rates.shift();
@@ -148,17 +150,19 @@ var Router = (function(){
 			this.rx_top = this.rx_rates.last();
 	};
 
-	Router.prototype.addTxValue = function(value)
+	Router.prototype.addTxValue = function(tx_current)
 	{
-		if (value < this.tx.last())
-			value = this.tx.last();
+		var tx_last = this.tx.last();
 
-		this.tx.push(value);
+		this.tx.push(tx_current);
 
 		if (this.tx.length > 1024)
 			this.tx.shift();
 
-		this.tx_rates.push((this.tx.last() - this.tx[this.tx.length -2]) / this.delay);
+		if (tx_current < tx_last) // counter was reset, avoid computing negative rate
+			return;
+
+		this.tx_rates.push((tx_current - tx_last) / this.delay);
 
 		if (this.tx_rates.length > 1024)
 			this.tx_rates.shift();
